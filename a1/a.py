@@ -55,7 +55,7 @@ def index(filename):
         # normalize terms
         terms = doc_to_terms(row["comment"])
 
-        #  create the posting list and the dictionary
+        # create the posting list and the dictionary
         for term in terms:
             if term in dictionary:
                 count, pointer = dictionary[term]
