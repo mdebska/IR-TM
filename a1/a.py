@@ -14,45 +14,29 @@ def load_csv(path):
                         )
 
 def doc_to_terms(string):
-    """
-    Normalization of the terms in a tweet.
-    """
-    EMOJI_PATTERN = re.compile( # (source: stackoverflow)
-    "(["
-    "\U0001F1E0-\U0001F1FF"  # flags (iOS)
-    "\U0001F300-\U0001F5FF"  # symbols & pictographs
-    "\U0001F600-\U0001F64F"  # emoticons
-    "\U0001F680-\U0001F6FF"  # transport & map symbols
-    "\U0001F700-\U0001F77F"  # alchemical symbols
-    "\U0001F780-\U0001F7FF"  # Geometric Shapes Extended
-    "\U0001F800-\U0001F8FF"  # Supplemental Arrows-C
-    "\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
-    "\U0001FA00-\U0001FA6F"  # Chess Symbols
-    "\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
-    "\U00002702-\U000027B0"  # Dingbats
-    "])"
-  )
+    EMOJI_PATTERN = re.compile(
+        r"(["
+        r"\U0001F1E0-\U0001F1FF"
+        r"\U0001F300-\U0001F5FF"
+        r"\U0001F600-\U0001F64F"
+        r"\U0001F680-\U0001F6FF"
+        r"\U0001F700-\U0001F77F"
+        r"\U0001F780-\U0001F7FF"
+        r"\U0001F800-\U0001F8FF"
+        r"\U0001F900-\U0001F9FF"
+        r"\U0001FA00-\U0001FA6F"
+        r"\U0001FA70-\U0001FAFF"
+        r"\u2702-\u27B0"
+        r"])"
+    )
 
-    # lowercase & no punctuation 
-    string_processed = re.sub("[\[\]\.\(\),\?!\"\']", "",string).lower()
-
-    # no emojis
+    string_processed = re.sub(r"[\[\]\.\(\),\?!\"'@:#]", "", string).lower()
     string_processed = re.sub(EMOJI_PATTERN, "", string_processed)
+    string_processed = re.sub(r"newline", " ", string_processed)
+    string_processed = re.sub(r"tab", " ", string_processed)
 
-    # removes "newline" & "tab"
-    string_processed = re.sub("newline", " ", string_processed)
-    string_processed = re.sub("tab", " ", string_processed)
-
-    # splites where a space is
-    terms = re.split(" ", string_processed)
-
-    # removes duplicates
+    terms = re.split(r"\s+", string_processed.strip())
     terms = list(set(terms))
-
-    # ignores tweets with links 
-    for term in terms:
-        if re.findall("\Ahttp", term):
-          return []
 
     return terms
 
@@ -76,18 +60,22 @@ def index(filename):
             if term in dictionary:
                 count, pointer = dictionary[term]
                 count += 1
-                postings[pointer].append(row["id"])
+                postings[pointer].add(row["id"])
+                dictionary[term] = (count, pointer)
 
             else:
-                count, pointer = 1, "p"+ str(len(postings) + 1)
-                dictionary[term] = (count, pointer)
-                postings[pointer] = [row["id"]]
+                pointer = "p"+ str(len(postings) + 1)
+                dictionary[term] = (1, pointer)
+                postings[pointer] = {row["id"]}
 
-    index = (dictionary, postings)
-    return index
+    # sort the posting lists
+    for pointer in postings:
+        postings[pointer] = sorted(postings[pointer])
+
+    return dictionary, postings
 
 # example usage
-dictionary, postings = index("data/tweets.csv")
+dictionary, postings = index(r"a1\data\tweets.csv")
 
 def query(term : str):
     """
@@ -105,6 +93,7 @@ def query_two(term1, term2 : str):
     """
     Returns the intersection of two posting lists.
     """
+    res = []
     if term1 in dictionary and term2 in dictionary:
         # get the posting lists of the terms
         _, pointer1 = dictionary[term1]
@@ -115,8 +104,6 @@ def query_two(term1, term2 : str):
         # initialize iterators
         iter1 = iter(t_posting1)
         iter2 = iter(t_posting2)
-
-        res = []
         try:
             doc1 = next(iter1)
             doc2 = next(iter2)
@@ -125,8 +112,8 @@ def query_two(term1, term2 : str):
             while True:
                 if doc1 == doc2:
                     res.append(doc1)
-                    doc1 = next(res)
-                    doc2 = next(res)
+                    doc1 = next(iter1)
+                    doc2 = next(iter2)
                 elif doc1 < doc2:
                     doc1 = next(iter1)
                 else:
@@ -134,5 +121,9 @@ def query_two(term1, term2 : str):
         except StopIteration:
             pass
     return res
-
-
+            
+# test case
+res1 = query_two("side", "effect")
+res2 = query_two("malaria", "vaccine")
+result = list(set(res1) & set(res2))
+print("Result: ", result)
