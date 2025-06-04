@@ -75,7 +75,7 @@ def index(filename):
     return dictionary, postings
 
 # example usage
-dictionary, postings = index(r"data_1_2\tweets.csv")
+dictionary, postings = index("data_1_2/tweets.csv")
 
 def query(term : str):
     """
